@@ -190,6 +190,8 @@ namespace TheWordMachine
             var cm2 = charMapFiltered.ToList();
             cm2.Sort();
 #endif
+            var format = new StringFormat();
+            format.Alignment = StringAlignment.Center;
             using (var gfx = Graphics.FromImage(img))
             {
                 gfx.CompositingQuality = CompositingQuality.HighQuality;
