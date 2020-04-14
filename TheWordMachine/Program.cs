@@ -110,10 +110,9 @@ namespace TheWordMachine
             }
             Directory.CreateDirectory(outp);
             var count = new int[256][][];
-            var charMap = new List<int> {0, '\n'};
+            var charMap = new List<int> {0};
             /*
             [0] = \0 (word start)
-            [1] = \n (word end)
             [2] = A
             [3] = B
             */
@@ -152,7 +151,7 @@ namespace TheWordMachine
                 var l = l2;
                 var i = 0;
                 var j = 0;
-                foreach (var k in (l.ToLower() + "\n").Select(x => x == ' ' ? 0 : x))
+                foreach (var k in (l.ToLower() + "\0"))
                 {
                     if(!charMap.Contains(k)) charMap.Add(k);
                     count[charMap.IndexOf(i)][charMap.IndexOf(j)][charMap.IndexOf(k)]++;
@@ -172,16 +171,17 @@ namespace TheWordMachine
 
             Console.WriteLine("Generating probability matrix");
 
-            var count2D = CalculateTheFuckingSumAxis0(count);
-            var proba2D = Divide(count2D, Transpose2(Tile2(CalculateTheFuckingSum(Transpose2(count2D)))));
+            var count2D = SumAxis0(count);
+            var proba2D = Divide(count2D, Transpose2(Tile2(Sum(Transpose2(count2D)))));
             var alpha = 0.33f;
             var proba2Da = Pow(proba2D, alpha);
             var charMapFiltered = charMap
                 .Where(x => !char.IsDigit((char)x))
                 .ToList();
-            var bsize = (charMapFiltered.Count - 2) * 24 + 24;
-            var img = new Bitmap(bsize, bsize + 24);
-            var font = new Font("Trebuchet MS", 20, FontStyle.Regular, GraphicsUnit.Pixel);
+            var cskip = 0;
+            var bsize = (charMapFiltered.Count - cskip) * 24 + 24;
+            var img = new Bitmap(bsize, bsize + 48);
+            var font = new Font("Consolas", 20, FontStyle.Regular, GraphicsUnit.Pixel);
 #if TRIER_ACCENTS
             var cm2_1 = charMapFiltered.Select(x => ((char)x).ToString()).ToList();
             cm2_1.Sort();
@@ -198,36 +198,38 @@ namespace TheWordMachine
                 gfx.SmoothingMode = SmoothingMode.HighQuality;
                 gfx.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
                 gfx.Clear(Color.White);
-                gfx.DrawString("P", font, Brushes.Black, new RectangleF(0, 0, 24, 24));
-                gfx.DrawString("=", font, Brushes.Black, new RectangleF(24, 0, 24, 24));
-                gfx.DrawString("0", font, Brushes.Black, new RectangleF(48, 0, 24, 24));
-                gfx.FillRectangle(Brushes.Black, 72, 0, 24, 24);
+                var ver = Assembly.GetEntryAssembly().GetName().Version;
+                gfx.DrawString($"twm {ver.Major}.{ver.Minor}", font, Brushes.Black, new RectangleF(0, 0, bsize, 24), format);
+                gfx.DrawString("P", font, Brushes.Black, new RectangleF(0, 24, 24, 24), format);
+                gfx.DrawString("=", font, Brushes.Black, new RectangleF(24, 24, 24, 24), format);
+                gfx.DrawString("0", font, Brushes.Black, new RectangleF(48, 24, 24, 24), format);
+                gfx.FillRectangle(Brushes.Black, 72, 24, 24, 24);
                 for (var i = 0; i < bsize - 120; i++)
                 {
-                    gfx.FillRectangle(new SolidBrush(HsvToRgb((1 - i / (double)(bsize - 120)) * 240, 1, 1)), 96 + i, 0, 1, 24);
+                    gfx.FillRectangle(new SolidBrush(HsvToRgb((1 - i / (double)(bsize - 120)) * 240, 1, 1)), 96 + i, 24, 1, 24);
                 }
-                gfx.DrawString("1", font, Brushes.Black, new RectangleF(bsize - 24, 0, 24, 24));
-                for (var i = 2; i < charMapFiltered.Count; i++)
+                gfx.DrawString("1", font, Brushes.Black, new RectangleF(bsize - 24, 24, 24, 24), format);
+                for (var i = cskip; i < charMapFiltered.Count; i++)
                 {
-                    gfx.DrawString(((char)charMapFiltered[i]).ToString(), font, new SolidBrush(Color.Black), new RectangleF(0, 24 * (cm2.IndexOf(charMapFiltered[i])), 24, 24));
+                    gfx.DrawString(i == 0 ? "␂" : ((char)charMapFiltered[i]).ToString(), font, new SolidBrush(Color.Black), new RectangleF(0, 24 * (3 + cm2.IndexOf(charMapFiltered[i]) - cskip), 24, 24), format);
+                    gfx.DrawString(i == 0 ? "␃" : ((char)charMapFiltered[i]).ToString(), font, new SolidBrush(Color.Black), new RectangleF(24 * (1 + cm2.IndexOf(charMapFiltered[i]) - cskip), 48, 24, 24), format);
 
-                    for (var j = 2; j < charMapFiltered.Count; j++)
+                    for (var j = cskip; j < charMapFiltered.Count; j++)
                     {
-                        gfx.DrawString(((char)charMapFiltered[j]).ToString(), font, new SolidBrush(Color.Black), new RectangleF(24 * (cm2.IndexOf(charMapFiltered[j]) - 1), 24, 24, 24));
                         var prob = proba2Da[i][j];
                         var color = Color.Black;
                         // probability is explicitely set to zero iff it never happens
                         // ReSharper disable once CompareOfFloatsByEqualityOperator
                         if(prob != 0)
                             color = HsvToRgb((1 - prob) * 240, 1, 1);
-                        gfx.FillRectangle(new SolidBrush(color), 24 * (cm2.IndexOf(charMapFiltered[j]) - 1), 24 * (cm2.IndexOf(charMapFiltered[i])), 24, 24);
+                        gfx.FillRectangle(new SolidBrush(color), 24 * (1 + cm2.IndexOf(charMapFiltered[j]) - cskip), 24 * (3 + cm2.IndexOf(charMapFiltered[i]) - cskip), 24, 24);
                     }
                 }
             }
             img.Save(Path.Combine(outp, "matrix.png"), ImageFormat.Png);
 
             Console.WriteLine("Generating words");
-            var sum = CalculateTheFuckingSumAxis2(count);
+            var sum = SumAxis2(count);
             var sumTiled = Transpose3(Tile3(Transpose2(sum)));
             var proba = Divide(count, sumTiled);
 
@@ -242,15 +244,18 @@ namespace TheWordMachine
                 {
                     i = 0;
                     j = 0;
-                    while (j != 1 && curWord.Length <= size + 1)
+
+                    while (true)
                     {
                         k = Choice(Enumerable.Range(0, 256).ToArray(), proba[i][j]);
-                        if (k == 0) continue;
+                        if (k == 0) break;
+                        if (curWord.Length >= size) break;
                         curWord.Append((char) charMap[k]);
                         i = j;
                         j = k;
                     }
-                    if (curWord.Length == size + 1)
+
+                    if (k == 0 && curWord.Length == size)
                     {
                         var x = curWord.ToString();
                         if (genWords.Contains(x)) continue;
@@ -260,6 +265,8 @@ namespace TheWordMachine
                         genWords[genCount] = x;
                         genCount++;
                     }
+
+                    curWord.Clear();
                 }
                 File.WriteAllLines(Path.Combine(outp, "words_" + size + ".txt"), genWords);
             }
