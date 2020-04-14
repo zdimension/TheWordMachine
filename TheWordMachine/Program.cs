@@ -15,7 +15,7 @@ namespace TheWordMachine
         private static int MinWordSize { get; set; } = 3;
         private static int MaxWordSize { get; set; } = 12;
         private static int WordsPerSize { get; set; } = 100;
-        private static bool ExcludeExisingWords { get; set; }
+        private static bool ExcludeExistingWords { get; set; }
         private static string TheEncoding { get; set; } = "UTF-8";
 
         private static void Main(string[] args)
@@ -54,7 +54,7 @@ namespace TheWordMachine
                 {
                     case "-noex":
                     case "--exclude-existing":
-                        ExcludeExisingWords = true;
+                        ExcludeExistingWords = true;
                         continue;
                 }
                 if (sp.Length > 1)
@@ -256,7 +256,7 @@ namespace TheWordMachine
                         var x = curWord.Substring(0, curWord.Length - 1);
                         if (genWords.Contains(x)) continue;
                         if (lines.Contains(x))
-                            if (ExcludeExisingWords) continue;
+                            if (ExcludeExistingWords) continue;
                             else x += "*";
                         genWords[genCount] = x;
                         genCount++;
