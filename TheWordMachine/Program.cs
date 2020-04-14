@@ -236,24 +236,23 @@ namespace TheWordMachine
                 Console.WriteLine(" for size " + size);
                 var genCount = 0;
                 int i, j, k;
-                string curWord;
                 var genWords = new string[WordsPerSize];
+                var curWord = new StringBuilder();
                 while (genCount < genWords.Length)
                 {
                     i = 0;
                     j = 0;
-                    curWord = "";
                     while (j != 1 && curWord.Length <= size + 1)
                     {
                         k = Choice(Enumerable.Range(0, 256).ToArray(), proba[i][j]);
                         if (k == 0) continue;
-                        curWord += (char)charMap[k];
+                        curWord.Append((char) charMap[k]);
                         i = j;
                         j = k;
                     }
                     if (curWord.Length == size + 1)
                     {
-                        var x = curWord.Substring(0, curWord.Length - 1);
+                        var x = curWord.ToString();
                         if (genWords.Contains(x)) continue;
                         if (lines.Contains(x))
                             if (ExcludeExistingWords) continue;
