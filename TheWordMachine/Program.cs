@@ -10,7 +10,7 @@ using System.Text;
 
 namespace TheWordMachine
 {
-    internal static class Program
+    public static class Program
     {
         private static int MinWordSize { get; set; } = 3;
         private static int MaxWordSize { get; set; } = 12;
