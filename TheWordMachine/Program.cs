@@ -567,13 +567,5 @@ namespace TheWordMachine
             if (i > 255) return 255;
             return i;
         }
-
-        private static float Clamp360Wrap(float i)
-        {
-            i = i % 360;
-            if (i < 0) return 360 + i;
-            return i;
-        }
-    }
     }
 }
