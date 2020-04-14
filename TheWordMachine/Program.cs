@@ -381,7 +381,7 @@ namespace TheWordMachine
 
             for (var i = 0; i < 256; i++)
             {
-                result[i] = array.Clone() as int[][];
+                result[i] = array.Select(a => a.ToArray()).ToArray();
             }
 
             return result;
