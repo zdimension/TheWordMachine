@@ -6,7 +6,9 @@ using System.Drawing.Imaging;
 using System.Drawing.Text;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
+// ReSharper disable SuggestBaseTypeForParameter
 
 namespace TheWordMachine
 {
