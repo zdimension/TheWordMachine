@@ -266,7 +266,7 @@ namespace TheWordMachine
             }
         }
 
-        private static int[] CalculateTheFuckingSum(IReadOnlyList<int[]> arr)
+        private static int[] Sum(int[][] arr)
         {
             var result = new int[256];
 
@@ -285,7 +285,7 @@ namespace TheWordMachine
             return result;
         }
 
-        private static int[][] CalculateTheFuckingSumAxis0(IReadOnlyList<int[][]> arr)
+        private static int[][] SumAxis0(int[][][] arr)
         {
             var result = new int[256][];
 
@@ -306,7 +306,7 @@ namespace TheWordMachine
             return result;
         }
 
-        private static int[][] CalculateTheFuckingSumAxis2(IReadOnlyList<int[][]> arr)
+        private static int[][] SumAxis2(int[][][] arr)
         {
             var result = new int[256][];
 
@@ -327,7 +327,7 @@ namespace TheWordMachine
             return result;
         }
 
-        private static int[][] Transpose2(IReadOnlyList<int[]> array)
+        private static int[][] Transpose2(int[][] array)
         {
             var result = new int[256][];
 
@@ -343,7 +343,7 @@ namespace TheWordMachine
             return result;
         }
 
-        private static int[][][] Transpose3(IReadOnlyList<int[][]> array)
+        private static int[][][] Transpose3(int[][][] array)
         {
             var result = new int[256][][];
 
@@ -387,7 +387,7 @@ namespace TheWordMachine
             return result;
         }
 
-        private static float[][] Divide(IReadOnlyList<int[]> a, IReadOnlyList<int[]> b)
+        private static float[][] Divide(int[][] a, int[][] b)
         {
             var result = new float[256][];
 
@@ -405,7 +405,7 @@ namespace TheWordMachine
             return result;
         }
 
-        private static float[][][] Divide(IReadOnlyList<int[][]> a, IReadOnlyList<int[][]> b)
+        private static float[][][] Divide(int[][][] a, int[][][] b)
         {
             var result = new float[256][][];
 
@@ -428,7 +428,7 @@ namespace TheWordMachine
             return result;
         }
 
-        private static float[][] Pow(IReadOnlyList<float[]> a, float f)
+        private static float[][] Pow(float[][] a, float f)
         {
             var result = new float[256][];
 
@@ -450,13 +450,13 @@ namespace TheWordMachine
         /// </summary>
         private static readonly Random Rng = new Random();
 
-        private static int Choice(IReadOnlyList<int> a, IReadOnlyList<float> p)
+        private static int Choice(int[] a, float[] p)
         {
             var roll = Rng.NextDouble();
 
             var cum = 0.0;
 
-            for (var i = 0; i < a.Count; i++)
+            for (var i = 0; i < a.Length; i++)
             {
                 cum += p[i];
 
