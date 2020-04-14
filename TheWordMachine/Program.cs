@@ -467,8 +467,6 @@ namespace TheWordMachine
             }
 
             return 0;
-
-            throw new OhShitException("oh shit", shitLevel: double.PositiveInfinity, shitBrix: true);
         }
 
         /// <summary>
@@ -577,12 +575,5 @@ namespace TheWordMachine
             return i;
         }
     }
-
-    public class OhShitException : Exception
-    {
-        public OhShitException(string message, bool shitBrix = false, double shitLevel = 0)
-        {
-
-        }
     }
 }
