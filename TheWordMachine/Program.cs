@@ -8,6 +8,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading.Tasks;
+
 // ReSharper disable SuggestBaseTypeForParameter
 
 namespace TheWordMachine
@@ -65,15 +67,11 @@ namespace TheWordMachine
                     {
                         case "-enc":
                         case "--encoding":
-                            /*if (sp[1].ToUpper() == "UTF-8")
-                            {
-                                Console.WriteLine("UTF-8 is not supported for the moment. Please convert your file to another encoding, for example ISO-8859-1 or Windows-1252.");
-                            }
-                            else*/ TheEncoding = sp[1];
+                            TheEncoding = sp[1];
                             continue;
                     }
-                    int v;
-                    if (int.TryParse(sp[1], out v))
+
+                    if (int.TryParse(sp[1], out var v))
                     {
                         switch (sp[0])
                         {
@@ -91,7 +89,7 @@ namespace TheWordMachine
                                 break;
                         }
                     }
-                    else Console.WriteLine("Invalid number: " + sp[2]);
+                    else Console.WriteLine($"Invalid number: {sp[2]}");
                 }
                 else Console.WriteLine("Expected value");
             }
@@ -102,40 +100,51 @@ namespace TheWordMachine
             }
         }
 
+        private static int matSize;
+
         private static void GenMots(string n)
         {
-            Console.WriteLine("Generating words for file: " + n);
+            Console.WriteLine($"Generating words for file: {n}");
             var outp = Path.Combine(Environment.CurrentDirectory, "output", n);
             if (Directory.Exists(outp))
             {
                 Directory.Delete(outp, true);
             }
-            Directory.CreateDirectory(outp);
+            for (var i = 0; i < 5; i++)
+            {
+                Directory.CreateDirectory(outp);
+                if (Directory.Exists(outp))
+                    break;
+            }
+            
             var count = new int[256][][];
-            var charMap = new List<int> {0};
+            var charMap = new List<char> {'\0'};
             /*
             [0] = \0 (word start)
             [2] = A
             [3] = B
             */
-            for (var i = 0; i < 256; i++)
+            Parallel.For(0, 256, i =>
             {
                 count[i] = new int[256][];
-                for (var j = 0; j < 256; j++)
+                Parallel.For(0, 256, j =>
                 {
                     count[i][j] = new int[256];
-                }
-            }
+                });
+            });
+
             var fn = n;
             if (!File.Exists(fn))
             {
                 fn = Path.Combine("data", fn);
             }
+
             if (!File.Exists(fn))
             {
-                Console.WriteLine("File not found: " + n + " ; skipping");
+                Console.WriteLine($"File not found: {n} ; skipping");
                 return;
             }
+
             Encoding enc;
             try
             {
@@ -143,19 +152,32 @@ namespace TheWordMachine
             }
             catch
             {
-                enc = Encoding.GetEncoding("ISO-8859-1");
+                Console.WriteLine($"Invalid encoding value: {TheEncoding}. Using default");
+                enc = Encoding.UTF8;
             }
+
+            var (lines, newCount) = LoadWords(fn, enc, charMap, count);
+
+            GenerateProbMatrix(outp, charMap, newCount);
+
+            GenerateWords(outp, charMap, newCount, lines);
+
+            Console.WriteLine($"Cache hits: {cacheHits} / {cacheHits + cacheMisses}");
+        }
+
+        private static (string[] lines, int[][][] count) LoadWords(string fn, Encoding enc, List<char> charMap, int[][][] count)
+        {
             var lines = File.ReadAllLines(fn, enc);
-            Console.WriteLine("0 / " + lines.Length);
+            Console.WriteLine($"0 / {lines.Length}");
             var cnt = 0;
             foreach (var l2 in lines)
             {
                 var l = l2;
-                var i = 0;
-                var j = 0;
+                var i = '\0';
+                var j = '\0';
                 foreach (var k in (l.ToLower() + "\0"))
                 {
-                    if(!charMap.Contains(k)) charMap.Add(k);
+                    if (!charMap.Contains(k)) charMap.Add(k);
                     count[charMap.IndexOf(i)][charMap.IndexOf(j)][charMap.IndexOf(k)]++;
                     i = j;
                     j = k;
@@ -164,13 +186,32 @@ namespace TheWordMachine
                 if (cnt % 1000 == 0)
                 {
                     Console.CursorTop--;
-                    Console.WriteLine(cnt + " / " + lines.Length);
+                    Console.WriteLine($"{cnt} / {lines.Length}");
                 }
             }
 
             Console.CursorTop--;
-            Console.WriteLine(lines.Length + " / " + lines.Length);
+            Console.WriteLine($"{lines.Length} / {lines.Length}");
 
+            matSize = charMap.Count;
+
+            var newCount = new int[matSize][][];
+
+            Parallel.For(0, matSize, i =>
+            {
+                newCount[i] = new int[matSize][];
+                Parallel.For(0, matSize, j =>
+                {
+                    newCount[i][j] = new int[matSize];
+                    Array.Copy(count[i][j], newCount[i][j], matSize);
+                });
+            });
+
+            return (lines, newCount);
+        }
+
+        private static void GenerateProbMatrix(string outp, List<char> charMap, int[][][] count)
+        {
             Console.WriteLine("Generating probability matrix");
 
             var count2D = SumAxis0(count);
@@ -178,7 +219,7 @@ namespace TheWordMachine
             var alpha = 0.33f;
             var proba2Da = Pow(proba2D, alpha);
             var charMapFiltered = charMap
-                .Where(x => !char.IsDigit((char)x))
+                .Where(x => !char.IsDigit(x))
                 .ToList();
             var cskip = 0;
             var bsize = (charMapFiltered.Count - cskip) * 24 + 24;
@@ -192,8 +233,7 @@ namespace TheWordMachine
             var cm2 = charMapFiltered.ToList();
             cm2.Sort();
 #endif
-            var format = new StringFormat();
-            format.Alignment = StringAlignment.Center;
+            var format = new StringFormat {Alignment = StringAlignment.Center};
             using (var gfx = Graphics.FromImage(img))
             {
                 gfx.CompositingQuality = CompositingQuality.HighQuality;
@@ -202,7 +242,7 @@ namespace TheWordMachine
                 gfx.SmoothingMode = SmoothingMode.HighQuality;
                 gfx.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
                 gfx.Clear(Color.White);
-                var ver = Assembly.GetEntryAssembly().GetName().Version;
+                var ver = Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(0, 0);
                 gfx.DrawString($"twm {ver.Major}.{ver.Minor}", font, Brushes.Black, new RectangleF(0, 0, bsize, 24), format);
                 gfx.DrawString("P", font, Brushes.Black, new RectangleF(0, 24, 24, 24), format);
                 gfx.DrawString("=", font, Brushes.Black, new RectangleF(24, 24, 24, 24), format);
@@ -224,14 +264,39 @@ namespace TheWordMachine
                         var color = Color.Black;
                         // probability is explicitely set to zero iff it never happens
                         // ReSharper disable once CompareOfFloatsByEqualityOperator
-                        if(prob != 0)
+                        if (prob != 0)
                             color = HsvToRgb((1 - prob) * 240, 1, 1);
                         gfx.FillRectangle(new SolidBrush(color), 24 * (1 + cm2.IndexOf(charMapFiltered[j]) - cskip), 24 * (3 + cm2.IndexOf(charMapFiltered[i]) - cskip), 24, 24);
                     }
                 }
             }
-            img.Save(Path.Combine(outp, "matrix.png"), ImageFormat.Png);
 
+            int att;
+            for (att = 0; att < 5; att++)
+            {
+                try
+                {
+                    img.Save(Path.Combine(outp, "matrix.png"), ImageFormat.Png);
+                    break;
+                }
+                catch
+                {
+                    // ignored
+                }
+            }
+
+            if (att == 5)
+            {
+                Console.WriteLine("Failed to generating probability matrix");
+            }
+        }
+
+        private static readonly List<string> genCache = new List<string>();
+        private static int cacheHits = 0;
+        private static int cacheMisses = 0;
+
+        private static void GenerateWords(string outp, List<char> charMap, int[][][] count, string[] lines)
+        {
             Console.WriteLine("Generating words");
             var sum = SumAxis2(count);
             var sumTiled = Transpose3(Tile3(Transpose2(sum)));
@@ -239,218 +304,252 @@ namespace TheWordMachine
 
             for (var size = MinWordSize; size <= MaxWordSize; size++)
             {
-                Console.WriteLine(" for size " + size);
+                Console.WriteLine($" for size {size}");
                 var genCount = 0;
-                int i, j, k;
                 var genWords = new string[WordsPerSize];
                 var curWord = new StringBuilder();
                 while (genCount < genWords.Length)
                 {
-                    i = 0;
-                    j = 0;
+                    var i = 0;
+                    var j = 0;
+                    int k;
 
-                    while (true)
+                    var cached = genCache.FirstOrDefault(m => m.Length == size);
+
+                    if (cached == null)
                     {
-                        k = Choice(Enumerable.Range(0, 256).ToArray(), proba[i][j]);
-                        if (k == 0) break;
-                        if (curWord.Length >= size) break;
-                        curWord.Append((char) charMap[k]);
-                        i = j;
-                        j = k;
+                        while (true)
+                        {
+                            k = Choice(Enumerable.Range(0, matSize).ToArray(), proba[i][j]);
+                            if (k == 0) break;
+                            //if (curWord.Length >= size) break;
+                            curWord.Append(charMap[k]);
+                            i = j;
+                            j = k;
+                        }
+
+                        cacheMisses++;
+                    }
+                    else
+                    {
+                        k = 0;
+                        curWord.Append(cached);
+                        genCache.Remove(cached);
+                        cacheHits++;
                     }
 
-                    if (k == 0 && curWord.Length == size)
+                    if (k == 0 && curWord.Length >= size)
                     {
                         var x = curWord.ToString();
-                        if (genWords.Contains(x)) continue;
-                        if (lines.Contains(x))
-                            if (ExcludeExistingWords) continue;
-                            else x += "*";
-                        genWords[genCount] = x;
-                        genCount++;
+
+                        if (curWord.Length == size)
+                        {
+                            if (genWords.Contains(x))
+                                continue;
+
+                            if (lines.Contains(x))
+                                if (ExcludeExistingWords) continue;
+                                else x += "*";
+
+                            genWords[genCount] = x;
+                            genCount++;
+                        }
+                        else
+                        {
+                            genCache.Add(x);
+                        }
                     }
 
                     curWord.Clear();
                 }
-                File.WriteAllLines(Path.Combine(outp, "words_" + size + ".txt"), genWords);
+                File.WriteAllLines(Path.Combine(outp, $"words_{size}.txt"), genWords);
             }
         }
 
         private static int[] Sum(int[][] arr)
         {
-            var result = new int[256];
+            var result = new int[matSize];
 
-            for (var i = 0; i < 256; i++)
+            Parallel.For(0, matSize, i =>
             {
                 var s = 0;
 
-                for (var j = 0; j < 256; j++)
+                for (var j = 0; j < matSize; j++)
                 {
                     s += arr[j][i];
                 }
 
                 result[i] = s;
-            }
+            });
 
             return result;
         }
 
         private static int[][] SumAxis0(int[][][] arr)
         {
-            var result = new int[256][];
+            var result = new int[matSize][];
 
-            for (var i = 0; i < 256; i++)
+            Parallel.For(0, matSize, i =>
             {
-                result[i] = new int[256];
-                for (var j = 0; j < 256; j++)
+                result[i] = new int[matSize];
+
+                Parallel.For(0, matSize, j =>
                 {
                     var s = 0;
-                    for (var k = 0; k < 256; k++)
+
+                    for (var k = 0; k < matSize; k++)
                     {
                         s += arr[k][i][j];
                     }
+
                     result[i][j] = s;
-                }
-            }
+                });
+            });
 
             return result;
         }
 
         private static int[][] SumAxis2(int[][][] arr)
         {
-            var result = new int[256][];
+            var result = new int[matSize][];
 
-            for (var i = 0; i < 256; i++)
+            Parallel.For(0, matSize, i =>
             {
-                result[i] = new int[256];
-                for (var j = 0; j < 256; j++)
+                result[i] = new int[matSize];
+
+                Parallel.For(0, matSize, j =>
                 {
                     var s = 0;
-                    for (var k = 0; k < 256; k++)
+
+                    for (var k = 0; k < matSize; k++)
                     {
                         s += arr[i][j][k];
                     }
+
                     result[i][j] = s;
-                }
-            }
+                });
+            });
 
             return result;
         }
 
         private static int[][] Transpose2(int[][] array)
         {
-            var result = new int[256][];
+            var result = new int[matSize][];
 
-            for (var i = 0; i < 256; i++)
+            Parallel.For(0, matSize, i =>
             {
-                result[i] = new int[256];
-                for (var j = 0; j < 256; j++)
+                result[i] = new int[matSize];
+
+                Parallel.For(0, matSize, j =>
                 {
                     result[i][j] = array[j][i];
-                }
-            }
+                });
+            });
 
             return result;
         }
 
         private static int[][][] Transpose3(int[][][] array)
         {
-            var result = new int[256][][];
+            var result = new int[matSize][][];
 
-            for (var x = 0; x < 256; x++)
+            Parallel.For(0, matSize, x =>
             {
-                result[x] = new int[256][];
-                for (var y = 0; y < 256; y++)
+                result[x] = new int[matSize][];
+
+                Parallel.For(0, matSize, y =>
                 {
-                    result[x][y] = new int[256];
-                    for (var z = 0; z < 256; z++)
+                    result[x][y] = new int[matSize];
+
+                    Parallel.For(0, matSize, z =>
                     {
                         result[x][y][z] = array[z][y][x];
-                    }
-                }
-            }
+                    });
+                });
+            });
 
             return result;
         }
 
         private static int[][] Tile2(int[] array)
         {
-            var result = new int[256][];
+            var result = new int[matSize][];
 
-            for (var i = 0; i < 256; i++)
+            Parallel.For(0, matSize, i =>
             {
                 result[i] = array.ToArray();
-            }
+            });
 
             return result;
         }
 
         private static int[][][] Tile3(int[][] array)
         {
-            var result = new int[256][][];
+            var result = new int[matSize][][];
 
-            for (var i = 0; i < 256; i++)
+            Parallel.For(0, matSize, i =>
             {
                 result[i] = array.Select(a => a.ToArray()).ToArray();
-            }
+            });
 
             return result;
         }
 
         private static float[][] Divide(int[][] a, int[][] b)
         {
-            var result = new float[256][];
+            var result = new float[matSize][];
 
-            for (var i = 0; i < 256; i++)
+            Parallel.For(0, matSize, i =>
             {
-                result[i] = new float[256];
+                result[i] = new float[matSize];
 
-                for (var j = 0; j < 256; j++)
+                Parallel.For(0, matSize, j =>
                 {
                     var b1 = b[i][j];
                     if (b1 != 0) result[i][j] = (float)a[i][j] / b1;
-                }
-            }
+                });
+            });
 
             return result;
         }
 
         private static float[][][] Divide(int[][][] a, int[][][] b)
         {
-            var result = new float[256][][];
+            var result = new float[matSize][][];
 
-            for (var i = 0; i < 256; i++)
+            Parallel.For(0, matSize, i =>
             {
-                result[i] = new float[256][];
+                result[i] = new float[matSize][];
 
-                for (var j = 0; j < 256; j++)
+                Parallel.For(0, matSize, j =>
                 {
-                    result[i][j] = new float[256];
+                    result[i][j] = new float[matSize];
 
-                    for (var k = 0; k < 256; k++)
+                    Parallel.For(0, matSize, k =>
                     {
                         var b1 = b[i][j][k];
                         if (b1 != 0) result[i][j][k] = (float)a[i][j][k] / b1;
-                    }
-                }
-            }
+                    });
+                });
+            });
 
             return result;
         }
 
         private static float[][] Pow(float[][] a, float f)
         {
-            var result = new float[256][];
+            var result = new float[matSize][];
 
-            for (var i = 0; i < 256; i++)
+            Parallel.For(0, matSize, i =>
             {
-                result[i] = new float[256];
+                result[i] = new float[matSize];
 
-                for (var j = 0; j < 256; j++)
+                Parallel.For(0, matSize, j =>
                 {
                     result[i][j] = (float)Math.Pow(a[i][j], f);
-                }
-            }
+                });
+            });
 
             return result;
         }
@@ -489,8 +588,8 @@ namespace TheWordMachine
         private static Color HsvToRgb(double h, double s, double v)
         {
             var H = h;
-            while (H < 0) { H += 360; };
-            while (H >= 360) { H -= 360; };
+            while (H < 0) { H += 360; }
+            while (H >= 360) { H -= 360; }
             double r, g, b;
             if (v <= 0)
             {
