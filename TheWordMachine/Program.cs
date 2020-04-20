@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -20,7 +21,8 @@ namespace TheWordMachine
         private static int MaxWordSize { get; set; } = 12;
         private static int WordsPerSize { get; set; } = 100;
         private static bool ExcludeExistingWords { get; set; }
-        private static string TheEncoding { get; set; } = "UTF-8";
+        private static Encoding TheEncoding { get; set; } = Encoding.UTF8;
+        private static bool UseREPL { get; set; } = false;
 
         private static void Main(string[] args)
         {
@@ -35,6 +37,7 @@ namespace TheWordMachine
                     "\t-enc\t--encoding\tSets the encoding of the input files. Default: UTF-8\n" +
                     "Switches:\n" +
                     "\t-noex\t--exclude-existing\tExclude words already present in the dictionary. Default: No\n" +
+                    "\t-repl\t--show-similarity\tDisplay the percentage of similarity of a word\n" +
                     "By default, the files are searched in the running directory and in the data\\ directory (in the running directory).\n" +
                     "Example usage: thewordmachine -min=5 -max=8 -wps=20 EN.txt FR.txt IT.txt\n");
                 Environment.Exit(1);
@@ -60,6 +63,10 @@ namespace TheWordMachine
                     case "--exclude-existing":
                         ExcludeExistingWords = true;
                         continue;
+                    case "-repl":
+                    case "--show-similarity":
+                        UseREPL = true;
+                        continue;
                 }
                 if (sp.Length > 1)
                 {
@@ -67,7 +74,14 @@ namespace TheWordMachine
                     {
                         case "-enc":
                         case "--encoding":
-                            TheEncoding = sp[1];
+                            try
+                            {
+                                TheEncoding = Encoding.GetEncoding(sp[1]);
+                            }
+                            catch
+                            {
+                                Console.WriteLine($"Invalid encoding value: {sp[1]}. Using default ({TheEncoding.EncodingName}");
+                            }
                             continue;
                     }
 
@@ -94,9 +108,64 @@ namespace TheWordMachine
                 else Console.WriteLine("Expected value");
             }
 
-            foreach (var s in inps)
+            if (UseREPL)
             {
-                GenMots(s);
+                var objs = inps
+                    .Select(LoadWords)
+                    .Select(o => (o.charMap, GenerateProbMatrix(o.count)))
+                    .ToList();
+
+                while (true)
+                {
+                    Console.WriteLine("Type ; to exit");
+                    Console.Write("> ");
+
+                    var mot = Console.ReadLine().Trim();
+                    if (mot == ";")
+                        break;
+
+                    var proba = new List<double>();
+
+                    foreach (var (charMap, probm) in objs)
+                    {
+                        var p = 1f;
+                        var last = 0;
+
+                        foreach (var k in (mot.ToLower() + "\0"))
+                        {
+                            try
+                            {
+                                var idx = charMap.IndexOf(k);
+                                var cur = probm[last][idx];
+                                p *= cur;
+                                last = idx;
+                            }
+                            catch
+                            {
+                                // ignored
+                            }
+                        }
+
+                        //proba.Add(p / (/*mot.Length +*/ 1));
+                        proba.Add(Math.Pow(p, 1d / (mot.Length + 1)));
+                    }
+
+                    Console.WriteLine("Score:");
+
+                    var maxp = proba.Max();
+
+                    foreach (var (inp, prob) in inps.Zip(proba, Tuple.Create))
+                    {
+                        Console.WriteLine($" {inp} : {prob:P} {(inps.Length > 1 && prob == maxp ? "<-- most likely" : "")}");
+                    }
+                }
+            }
+            else
+            {
+                foreach (var s in inps)
+                {
+                    GenMots(s);
+                }
             }
         }
 
@@ -116,9 +185,18 @@ namespace TheWordMachine
                 if (Directory.Exists(outp))
                     break;
             }
-            
+
+            var (lines, count, charMap) = LoadWords(n);
+
+            GenerateProbImage(outp, charMap, count);
+
+            GenerateWords(outp, charMap, count, lines);
+        }
+
+        private static (string[] lines, int[][][] count, List<char> charMap) LoadWords(string fn)
+        {
             var count = new int[256][][];
-            var charMap = new List<char> {'\0'};
+            var charMap = new List<char> { '\0' };
             /*
             [0] = \0 (word start)
             [2] = A
@@ -133,7 +211,6 @@ namespace TheWordMachine
                 });
             });
 
-            var fn = n;
             if (!File.Exists(fn))
             {
                 fn = Path.Combine("data", fn);
@@ -141,35 +218,13 @@ namespace TheWordMachine
 
             if (!File.Exists(fn))
             {
-                Console.WriteLine($"File not found: {n} ; skipping");
-                return;
+                Console.WriteLine($"File not found: {fn} ; skipping");
+                return default;
             }
 
-            Encoding enc;
-            try
-            {
-                enc = Encoding.GetEncoding(TheEncoding);
-            }
-            catch
-            {
-                Console.WriteLine($"Invalid encoding value: {TheEncoding}. Using default");
-                enc = Encoding.UTF8;
-            }
-
-            var (lines, newCount) = LoadWords(fn, enc, charMap, count);
-
-            GenerateProbMatrix(outp, charMap, newCount);
-
-            GenerateWords(outp, charMap, newCount, lines);
-
-            Console.WriteLine($"Cache hits: {cacheHits} / {cacheHits + cacheMisses}");
-        }
-
-        private static (string[] lines, int[][][] count) LoadWords(string fn, Encoding enc, List<char> charMap, int[][][] count)
-        {
-            var lines = File.ReadAllLines(fn, enc);
-            Console.WriteLine($"0 / {lines.Length}");
+            var lines = File.ReadAllLines(fn, TheEncoding);
             var cnt = 0;
+            var countLen = lines.Length.ToString().Length;
             foreach (var l2 in lines)
             {
                 var l = l2;
@@ -182,16 +237,17 @@ namespace TheWordMachine
                     i = j;
                     j = k;
                 }
-                cnt++;
-                if (cnt % 1000 == 0)
+
+                if (cnt % 1234 == 0)
                 {
-                    Console.CursorTop--;
-                    Console.WriteLine($"{cnt} / {lines.Length}");
+                    Console.Write($"{fn} {cnt.ToString().PadLeft(countLen)} / {lines.Length}");
+                    Console.CursorLeft = 0;
                 }
+
+                cnt++;
             }
 
-            Console.CursorTop--;
-            Console.WriteLine($"{lines.Length} / {lines.Length}");
+            Console.WriteLine($"{fn} {lines.Length} / {lines.Length}");
 
             matSize = charMap.Count;
 
@@ -207,17 +263,22 @@ namespace TheWordMachine
                 });
             });
 
-            return (lines, newCount);
+            return (lines, newCount, charMap);
         }
 
-        private static void GenerateProbMatrix(string outp, List<char> charMap, int[][][] count)
+        private static float[][] GenerateProbMatrix(int[][][] count)
         {
-            Console.WriteLine("Generating probability matrix");
-
             var count2D = SumAxis0(count);
             var proba2D = Divide(count2D, Transpose2(Tile2(Sum(Transpose2(count2D)))));
             var alpha = 0.33f;
-            var proba2Da = Pow(proba2D, alpha);
+            return Pow(proba2D, alpha);
+        }
+
+        private static void GenerateProbImage(string outp, List<char> charMap, int[][][] count)
+        {
+            Console.WriteLine("Generating probability matrix");
+
+            var proba2Da = GenerateProbMatrix(count);
             var charMapFiltered = charMap
                 .Where(x => !char.IsDigit(x))
                 .ToList();
@@ -255,8 +316,8 @@ namespace TheWordMachine
                 gfx.DrawString("1", font, Brushes.Black, new RectangleF(bsize - 24, 24, 24, 24), format);
                 for (var i = cskip; i < charMapFiltered.Count; i++)
                 {
-                    gfx.DrawString(i == 0 ? "␂" : ((char)charMapFiltered[i]).ToString(), font, new SolidBrush(Color.Black), new RectangleF(0, 24 * (3 + cm2.IndexOf(charMapFiltered[i]) - cskip), 24, 24), format);
-                    gfx.DrawString(i == 0 ? "␃" : ((char)charMapFiltered[i]).ToString(), font, new SolidBrush(Color.Black), new RectangleF(24 * (1 + cm2.IndexOf(charMapFiltered[i]) - cskip), 48, 24, 24), format);
+                    gfx.DrawString((i == 0 ? '␂' : charMapFiltered[i]).ToString(), font, new SolidBrush(Color.Black), new RectangleF(0, 24 * (3 + cm2.IndexOf(charMapFiltered[i]) - cskip), 24, 24), format);
+                    gfx.DrawString((i == 0 ? '␃' : charMapFiltered[i]).ToString(), font, new SolidBrush(Color.Black), new RectangleF(24 * (1 + cm2.IndexOf(charMapFiltered[i]) - cskip), 48, 24, 24), format);
 
                     for (var j = cskip; j < charMapFiltered.Count; j++)
                     {
@@ -291,78 +352,72 @@ namespace TheWordMachine
             }
         }
 
-        private static readonly List<string> genCache = new List<string>();
-        private static int cacheHits = 0;
-        private static int cacheMisses = 0;
-
-        private static void GenerateWords(string outp, List<char> charMap, int[][][] count, string[] lines)
+        private static void GenerateWords(string outp, List<char> charMap, int[][][] count, string[] linesList)
         {
+            Console.WriteLine("Generating lines hashset");
+            var lines = new HashSet<string>(linesList);
             Console.WriteLine("Generating words");
             var sum = SumAxis2(count);
             var sumTiled = Transpose3(Tile3(Transpose2(sum)));
             var proba = Divide(count, sumTiled);
+            var numSizes = MaxWordSize - MinWordSize + 1;
+            var genWords = new HashSet<string>[numSizes];
+            for (var i = 0; i < numSizes; i++)
+            {
+                genWords[i] = new HashSet<string>();
+            }
+
+            var countLen = WordsPerSize.ToString().Length;
+            var curWord = new StringBuilder();
+            var choices = Enumerable.Range(0, matSize).ToArray();
+            for (var numRemaining = numSizes; numRemaining > 0;)
+            {
+                var i = 0;
+                var j = 0;
+                int k;
+
+                while (true)
+                {
+                    k = Choice(choices, proba[i][j]);
+                    if (k == 0) break;
+                    if (curWord.Length >= MaxWordSize) break;
+                    curWord.Append(charMap[k]);
+                    i = j;
+                    j = k;
+                }
+
+                if (k == 0 && curWord.Length >= MinWordSize)
+                {
+                    var x = curWord.ToString();
+                    var size = curWord.Length - MinWordSize;
+
+                    if (genWords[size].Count == WordsPerSize)
+                        continue;
+
+                    if (genWords[size].Contains(x))
+                        continue;
+
+                    if (lines.Contains(x))
+                        if (ExcludeExistingWords) continue;
+                        else x += "*";
+
+                    genWords[size].Add(x);
+
+                    if (genWords[size].Count == WordsPerSize)
+                        numRemaining--;
+
+                    Console.Write(string.Join(" / ", genWords.Select(c => c.Count.ToString().PadLeft(countLen))));
+                    Console.CursorLeft = 0;
+                }
+
+                curWord.Clear();
+            }
+
+            Console.WriteLine("\nDone");
 
             for (var size = MinWordSize; size <= MaxWordSize; size++)
             {
-                Console.WriteLine($" for size {size}");
-                var genCount = 0;
-                var genWords = new string[WordsPerSize];
-                var curWord = new StringBuilder();
-                while (genCount < genWords.Length)
-                {
-                    var i = 0;
-                    var j = 0;
-                    int k;
-
-                    var cached = genCache.FirstOrDefault(m => m.Length == size);
-
-                    if (cached == null)
-                    {
-                        while (true)
-                        {
-                            k = Choice(Enumerable.Range(0, matSize).ToArray(), proba[i][j]);
-                            if (k == 0) break;
-                            //if (curWord.Length >= size) break;
-                            curWord.Append(charMap[k]);
-                            i = j;
-                            j = k;
-                        }
-
-                        cacheMisses++;
-                    }
-                    else
-                    {
-                        k = 0;
-                        curWord.Append(cached);
-                        genCache.Remove(cached);
-                        cacheHits++;
-                    }
-
-                    if (k == 0 && curWord.Length >= size)
-                    {
-                        var x = curWord.ToString();
-
-                        if (curWord.Length == size)
-                        {
-                            if (genWords.Contains(x))
-                                continue;
-
-                            if (lines.Contains(x))
-                                if (ExcludeExistingWords) continue;
-                                else x += "*";
-
-                            genWords[genCount] = x;
-                            genCount++;
-                        }
-                        else
-                        {
-                            genCache.Add(x);
-                        }
-                    }
-
-                    curWord.Clear();
-                }
-                File.WriteAllLines(Path.Combine(outp, $"words_{size}.txt"), genWords);
+                File.WriteAllLines(Path.Combine(outp, $"words_{size}.txt"), genWords[size - MinWordSize]);
             }
         }
 
