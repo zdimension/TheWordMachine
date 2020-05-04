@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29806.167
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheWordMachine", "TheWordMachine\TheWordMachine.csproj", "{BB769978-10B3-4C17-AE6A-29064D2D4408}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "libTWM", "libTWM\libTWM.csproj", "{239553F9-AF43-429B-89BA-BA261CF01DDD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,15 +17,26 @@ Global
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{BB769978-10B3-4C17-AE6A-29064D2D4408}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{BB769978-10B3-4C17-AE6A-29064D2D4408}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{BB769978-10B3-4C17-AE6A-29064D2D4408}.Debug|x64.ActiveCfg = Debug|x64
-		{BB769978-10B3-4C17-AE6A-29064D2D4408}.Debug|x64.Build.0 = Debug|x64
+		{BB769978-10B3-4C17-AE6A-29064D2D4408}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{BB769978-10B3-4C17-AE6A-29064D2D4408}.Debug|x64.Build.0 = Debug|Any CPU
 		{BB769978-10B3-4C17-AE6A-29064D2D4408}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BB769978-10B3-4C17-AE6A-29064D2D4408}.Release|Any CPU.Build.0 = Release|Any CPU
-		{BB769978-10B3-4C17-AE6A-29064D2D4408}.Release|x64.ActiveCfg = Release|x64
-		{BB769978-10B3-4C17-AE6A-29064D2D4408}.Release|x64.Build.0 = Release|x64
+		{BB769978-10B3-4C17-AE6A-29064D2D4408}.Release|x64.ActiveCfg = Release|Any CPU
+		{BB769978-10B3-4C17-AE6A-29064D2D4408}.Release|x64.Build.0 = Release|Any CPU
+		{239553F9-AF43-429B-89BA-BA261CF01DDD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{239553F9-AF43-429B-89BA-BA261CF01DDD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{239553F9-AF43-429B-89BA-BA261CF01DDD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{239553F9-AF43-429B-89BA-BA261CF01DDD}.Debug|x64.Build.0 = Debug|Any CPU
+		{239553F9-AF43-429B-89BA-BA261CF01DDD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{239553F9-AF43-429B-89BA-BA261CF01DDD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{239553F9-AF43-429B-89BA-BA261CF01DDD}.Release|x64.ActiveCfg = Release|Any CPU
+		{239553F9-AF43-429B-89BA-BA261CF01DDD}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BDC6DF67-3009-4AD3-8B5C-B3B8E01E635D}
 	EndGlobalSection
 	GlobalSection(CodealikeProperties) = postSolution
 		SolutionGuid = 43970279-32cb-4551-afbc-00be9b6019b0

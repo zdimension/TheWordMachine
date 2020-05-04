@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "TheWordMachine": {
+      "commandName": "Project",
+      "commandLineArgs": "-min=5 -max=12 -wps=200 EN.txt FR.txt IT.txt DE.txt",
+      "workingDirectory": ".."
+    }
+  }
+}
