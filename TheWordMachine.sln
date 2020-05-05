@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheWordMachine", "TheWordMa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "libTWM", "libTWM\libTWM.csproj", "{239553F9-AF43-429B-89BA-BA261CF01DDD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TWMweb", "TWMweb\TWMweb.csproj", "{1179E5B9-ED8E-4F5B-BA0E-A970A9302C6B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -31,6 +33,14 @@ Global
 		{239553F9-AF43-429B-89BA-BA261CF01DDD}.Release|Any CPU.Build.0 = Release|Any CPU
 		{239553F9-AF43-429B-89BA-BA261CF01DDD}.Release|x64.ActiveCfg = Release|Any CPU
 		{239553F9-AF43-429B-89BA-BA261CF01DDD}.Release|x64.Build.0 = Release|Any CPU
+		{1179E5B9-ED8E-4F5B-BA0E-A970A9302C6B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1179E5B9-ED8E-4F5B-BA0E-A970A9302C6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1179E5B9-ED8E-4F5B-BA0E-A970A9302C6B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1179E5B9-ED8E-4F5B-BA0E-A970A9302C6B}.Debug|x64.Build.0 = Debug|Any CPU
+		{1179E5B9-ED8E-4F5B-BA0E-A970A9302C6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1179E5B9-ED8E-4F5B-BA0E-A970A9302C6B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1179E5B9-ED8E-4F5B-BA0E-A970A9302C6B}.Release|x64.ActiveCfg = Release|Any CPU
+		{1179E5B9-ED8E-4F5B-BA0E-A970A9302C6B}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

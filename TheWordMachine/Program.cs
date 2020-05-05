@@ -193,7 +193,7 @@ namespace TheWordMachine
         private static void GenMots(string n)
         {
             Console.WriteLine($"Generating words for file: {n}");
-            var outp = Path.Combine(Environment.CurrentDirectory, "output", n);
+            var outp = Path.Combine(Environment.CurrentDirectory, "output", Path.GetFileName(n));
             if (Directory.Exists(outp))
             {
                 Directory.Delete(outp, true);
@@ -212,10 +212,10 @@ namespace TheWordMachine
                 {
                     Console.Write($"Analysis {p,5:P0}\r");
                 }), log: new BasicConsoleLogger());
-                //a.RNG = new CryptoRandomProvider();
                 Console.WriteLine("Loading complete.");
 
                 a.ProbabilityImage.Save(Path.Combine(outp, "matrix.png"), ImageFormat.Png);
+                File.WriteAllText(Path.Combine(outp, "matrix.svg"), a.ProbabilityImageSVG);
 
                 var progress = new int[MaxWordSize - MinWordSize + 1];
                 var countLen = WordsPerSize.ToString().Length;
@@ -223,7 +223,7 @@ namespace TheWordMachine
                 {
                     progress[t.Item1] = t.Item2;
                 });
-                Console.WriteLine("Generating words");
+
                 var res = Task.Run(() => a.GenerateWords(MinWordSize, MaxWordSize, WordsPerSize,
                     ExcludeExistingWords, prog));
                 do
